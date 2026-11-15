@@ -9,3 +9,7 @@ obj/
 tools/
 compare/
 tmp/
+
+# Python
+__pycache__/
+*.pyc
