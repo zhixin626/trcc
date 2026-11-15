@@ -21,18 +21,18 @@
 
 原程序安装在：
 
-\`C:\Program Files\TRCCCAP\`
+`C:\Program Files\TRCCCAP`
 
 用户还明确要求：
 
 - 不修改原安装目录中的程序；
-- 所有复制品、代码和测试文件放在 \`D:\TRCC\`；
+- 所有复制品、代码和测试文件放在 `D:\TRCC`；
 - 后续整理出一个可以上传 GitHub 的目录；
 - 在没有确认成功之前，不把实验程序当成可用程序。
 
 ### ChatGPT 执行的工作
 
-ChatGPT 在 \`D:\TRCC\github_upload\` 中保存了原程序的复制品、依赖文件、反编译结果和实验性修改版本。原安装目录没有被修改。
+ChatGPT 在 `D:\TRCC\github_upload` 中保存了原程序的复制品、依赖文件、反编译结果和实验性修改版本。原安装目录没有被修改。
 
 ## 用户提出的方案
 
@@ -55,10 +55,10 @@ ChatGPT 的分析是：获取 GPU 温度和控制显示屏是两个不同问题�
 
 **ChatGPT 执行：**
 
-- 复制原始 \`TRCC.exe\`；
+- 复制原始 `TRCC.exe`；
 - 保留原程序相关 DLL 和运行时文件；
-- 在 \`D:\TRCC\` 下创建多个实验副本；
-- 没有覆盖或修改 \`C:\Program Files\TRCCCAP\` 中的原文件。
+- 在 `D:\TRCC` 下创建多个实验副本；
+- 没有覆盖或修改 `C:\Program Files\TRCCCAP` 中的原文件。
 
 **目的：**
 
@@ -80,7 +80,7 @@ ChatGPT 的分析是：获取 GPU 温度和控制显示屏是两个不同问题�
 
 这说明“复制程序”本身没有解决问题。
 
-### 3. \`test_copy\` 至 \`test_copy10\`
+### 3. `test_copy` 至 `test_copy10`
 
 **ChatGPT 执行：**
 
@@ -93,7 +93,7 @@ ChatGPT 的分析是：获取 GPU 温度和控制显示屏是两个不同问题�
 
 这些目录不是独立完成的功能版本，而是 ChatGPT 在排查过程中的临时副本。它们已经从准备上传的目录中删除。
 
-### 4. \`TRCC_CPU_ONLY\`
+### 4. `TRCC_CPU_ONLY`
 
 **ChatGPT 执行：**
 
@@ -103,7 +103,7 @@ ChatGPT 的分析是：获取 GPU 温度和控制显示屏是两个不同问题�
 
 **用户反馈和后续检查都没有证明成功。** 显示屏上的内容没有可靠地变成只有 CPU 温度，因此不能称为可用版本。
 
-### 5. \`TRCC_CPU_ONLY_V2\`
+### 5. `TRCC_CPU_ONLY_V2`
 
 **ChatGPT 执行：**
 
@@ -117,28 +117,28 @@ ChatGPT 的分析是：获取 GPU 温度和控制显示屏是两个不同问题�
 
 仍然没有完成硬件验证。用户反馈显示内容仍然没有按预期变化，因此这个版本也没有成功。
 
-### 6. \`TRCC_CPU_ONLY_0416_8001\`
+### 6. `TRCC_CPU_ONLY_0416_8001`
 
 **ChatGPT 执行：**
 
 在继续进行静态修改的同时，加入了 USB/HID 设备识别方面的尝试，使用 Windows 设备枚举中发现的候选 VID/PID：
 
-- VID：\`0416\`
-- PID：\`8001\`
+- VID：`0416`
+- PID：`8001`
 
 **结果：**
 
 这个版本没有证明能够正确控制 PS120 显示屏。加入 VID/PID 只能帮助筛选设备，不能自动得到正确的显示协议，也不能证明候选设备就是 PS120。
 
-### 7. 当前目录中的 \`TRCC_CPU_ONLY.exe\`
+### 7. 当前目录中的 `TRCC_CPU_ONLY.exe`
 
 **ChatGPT 执行：**
 
 这是整理后保留的最后一个实验性补丁副本，主要尝试：
 
-- 修改 \`FormLED.GetVal\` 中不同显示样式的项目选择；
+- 修改 `FormLED.GetVal` 中不同显示样式的项目选择；
 - 将 GPU、功耗、单位等相关标志清零或跳过；
-- 调整 \`UCScreenLED.SetMyNumeral\` 的调用；
+- 调整 `UCScreenLED.SetMyNumeral` 的调用；
 - 保留原程序的其他文件和依赖。
 
 **最终结果：**
@@ -153,16 +153,16 @@ ChatGPT 的分析是：获取 GPU 温度和控制显示屏是两个不同问题�
 
 在显示屏保持插入、无法拔插对照的情况下，ChatGPT 使用 Windows 设备枚举查看了连接中的 HID 设备，发现一个候选设备：
 
-- USB 设备标识：\`USB\\VID_0416&PID_8001\`
-- 设备描述：\`USB Input Device\`
-- HID 描述：\`HID-compliant vendor-defined device\`
-- 总线描述：\`HID Transfer\`
+- USB 设备标识：`USB\\VID_0416&PID_8001`
+- 设备描述：`USB Input Device`
+- HID 描述：`HID-compliant vendor-defined device`
+- 总线描述：`HID Transfer`
 
 ### 这不是用户确认的结果
 
-\`0416:8001\` 不是用户从 PS120 外壳、说明书或厂商资料中提供的 VID/PID，也没有经过拔出显示屏再插回去的对照确认。
+`0416:8001` 不是用户从 PS120 外壳、说明书或厂商资料中提供的 VID/PID，也没有经过拔出显示屏再插回去的对照确认。
 
-因此，\`0416:8001\` 只能写成：
+因此，`0416:8001` 只能写成：
 
 > ChatGPT 通过 Windows 设备枚举找到的、可能与显示屏有关的候选 VID/PID。
 
@@ -174,7 +174,7 @@ ChatGPT 的分析是：获取 GPU 温度和控制显示屏是两个不同问题�
 
 目前不能排除以下情况：
 
-- \`0416:8001\` 是电脑中的其他 HID 设备；
+- `0416:8001` 是电脑中的其他 HID 设备；
 - 这个设备确实是显示屏，但还需要接口、端点或报告描述符才能正确通信；
 - 多个设备共用同一个 VID/PID；
 - VID/PID 正确，但实际显示协议、数据格式或初始化流程仍然未知。
@@ -192,7 +192,7 @@ ChatGPT 的分析是：获取 GPU 温度和控制显示屏是两个不同问题�
 ### ChatGPT 已完成的工作
 
 - 复制原程序并保留原始备份；
-- 将实验文件集中到 \`D:\TRCC\github_upload\`；
+- 将实验文件集中到 `D:\TRCC\github_upload`；
 - 对 .NET 程序进行静态分析；
 - 尝试修改显示项目选择和数码显示调用；
 - 枚举到一个可能相关但未确认的 HID 设备；
@@ -206,23 +206,24 @@ ChatGPT 的分析是：获取 GPU 温度和控制显示屏是两个不同问题�
 - 根据真实协议重新编写可靠的显示程序；
 - 在硬件上验证只显示 CPU 温度的效果。
 
-因此，当前仓库应被视为**用户需求和 ChatGPT 失败实验的记录**，不能把其中的 \`TRCC_CPU_ONLY.exe\` 当作已经成功的软件使用。
+因此，当前仓库应被视为**用户需求和 ChatGPT 失败实验的记录**，不能把其中的 `TRCC_CPU_ONLY.exe` 当作已经成功的软件使用。
 
 ## 目录内容
 
-- \`TRCC_CPU_ONLY.exe\`：ChatGPT 最后生成的实验性补丁副本，未验证成功
-- \`TRCC_original.exe\`：ChatGPT 保存的原始 \`TRCC.exe\` 备份
-- \`UsbHid.dll\`：原程序依赖的 HID 通信组件
-- \`LibUsbDotNet.LibUsbDotNet.dll\`：原程序依赖的 USB 组件
-- \`USBLCDNEW.dll\`、\`USBLCDNEW.exe\`、\`USBLCDNEW.runtimeconfig.json\`：原程序相关显示通信文件
-- \`CSCore.dll\`、\`Newtonsoft.Json.dll\`：原程序依赖
-- \`analysis/GetVal_0416_8001.il\`：ChatGPT 保存的与显示项目选择有关的反编译结果
+- `TRCC_CPU_ONLY.exe`：ChatGPT 最后生成的实验性补丁副本，未验证成功
+- `TRCC_original.exe`：ChatGPT 保存的原始 `TRCC.exe` 备份
+- `UsbHid.dll`：原程序依赖的 HID 通信组件
+- `LibUsbDotNet.LibUsbDotNet.dll`：原程序依赖的 USB 组件
+- `USBLCDNEW.dll`、`USBLCDNEW.exe`、`USBLCDNEW.runtimeconfig.json`：原程序相关显示通信文件
+- `CSCore.dll`、`Newtonsoft.Json.dll`：原程序依赖
+- `analysis/GetVal_0416_8001.il`：ChatGPT 保存的与显示项目选择有关的反编译结果
 
 ## 注意事项
 
-- 不要用本目录文件覆盖 \`C:\Program Files\TRCCCAP\` 中的原文件。
+- 不要用本目录文件覆盖 `C:\Program Files\TRCCCAP` 中的原文件。
 - 本项目没有提供已确认可用的设备控制协议。
 - 修改 EXE 的方式依赖反编译结果，容易受程序版本、校验、运行环境和内部调用影响。
 - 如果继续研究，下一步应优先做 USB/HID 报文抓取和设备身份确认，而不是继续盲目修改 EXE。
+
 
 
