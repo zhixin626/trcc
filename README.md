@@ -1,5 +1,10 @@
 # TRCC / PS120 数码显示屏 CPU 温度显示实验
 
+> **新方案：** 不再修改 TRCC，改为自己写程序直接通过 HID 控制显示屏，见 [`cpu_temp_display/`](cpu_temp_display/README.md)。
+> 设备 `0416:8001` 在社区项目 thermalright-trcc-linux 中被识别为 Thermalright 数码屏的 LED 控制器，协议已经公开。该程序尚待硬件验证。
+>
+> 下面是早期修改 EXE 的实验记录。
+
 ## 文档中的角色说明
 
 为了避免把用户的要求、ChatGPT 的操作和未经证实的判断混在一起，本文使用以下标记：
