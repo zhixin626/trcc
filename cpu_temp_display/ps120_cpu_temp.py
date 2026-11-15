@@ -7,8 +7,9 @@
     握手      : byte[12] = 1；回复里 byte[5] = PM（型号码），byte[4] = SUB
     数据帧    : 20 字节头（byte[12] = 2，byte[16..17] = 负载长度 LE）
                 + 每颗 LED 3 字节 RGB（RGB 先乘 0.4），按 64 字节切分发送
-    PA120 样式: 84 颗 LED。CPU 温度 3 位数码管 + "CPU" 标签 + ℃/℉ 标记，
-                其余（CPU 占用、GPU 温度/占用）全部熄灭即可。
+    布局      : 由握手 PM 决定。PM 16..31 = PA120（84 颗 LED），
+                PM 48/49 = LF8（93 颗 LED，PS120 实测 PM=49）。
+                只点亮 CPU 温度 3 位数码管 + "CPU" 字样 + ℃/℉，其余熄灭。
 
 协议、PM 型号表、段位表和线序重排表来自社区项目
 thermalright-trcc-linux（GPL-3.0）的逆向结果：
@@ -26,6 +27,7 @@ import struct
 import sys
 import time
 import urllib.request
+from dataclasses import dataclass
 
 VID, PID = 0x0416, 0x8001
 
@@ -36,18 +38,21 @@ HEADER_SIZE = 20
 CMD_INIT, CMD_DATA = 1, 2
 COLOR_SCALE = 0.4  # 原厂 FormLED.SendHidVal 的亮度系数
 
-# ── PA120 样式（PM 16..31）的逻辑 LED 编号 ─────────────────────────────
-PA120_PMS = set(range(16, 32))
-PA120_LED_COUNT = 84
-CPU_LABEL = (0, 1)          # "CPU" 字样
-UNIT_C, UNIT_F = 4, 5       # ℃ / ℉ 标记（CPU 一侧）
-CPU_TEMP_DIGITS = (         # 百位、十位、个位；每位 7 段 a..g
-    (10, 11, 12, 13, 14, 15, 16),
-    (17, 18, 19, 20, 21, 22, 23),
-    (24, 25, 26, 27, 28, 29, 30),
-)
+# ── 布局：逻辑 LED 编号 ──────────────────────────────────────────────
+# 物理线序 i 上发送 logical[remap[i]] 的颜色。
 
-# 物理线序 i 上发送 logical[REMAP[i]] 的颜色
+
+@dataclass(frozen=True)
+class Layout:
+    name: str
+    led_count: int
+    cpu_label: tuple[int, ...]          # "CPU" 字样
+    unit_c: int                         # ℃ 标记
+    unit_f: int                         # ℉ 标记
+    temp_digits: tuple[tuple[int, ...], ...]  # 百位、十位、个位；每位 7 段 a..g
+    remap: tuple[int, ...]
+
+
 PA120_REMAP = (
     1, 0, 15, 10, 11, 16, 14, 13, 12,
     22, 17, 18, 23, 21, 20, 19,
@@ -65,6 +70,38 @@ PA120_REMAP = (
     2, 3,
 )
 
+LF8_REMAP = (
+    6, 86, 87, 88, 90, 85, 84, 89, 79, 80, 81, 83, 78, 77, 82, 91,
+    5, 72, 73, 74, 76, 71, 70, 75, 65, 66, 67, 69, 64, 63, 68, 58,
+    59, 60, 62, 57, 56, 61, 51, 52, 53, 55, 50, 49, 54, 11, 10, 9,
+    13, 12, 7, 0, 8, 18, 17, 16, 20, 19, 14, 1, 15, 25, 24, 23,
+    27, 26, 21, 22, 3, 2, 32, 31, 30, 34, 33, 28, 29, 39, 38, 37,
+    41, 40, 35, 36, 46, 45, 44, 48, 47, 42, 43, 4, 92,
+)
+
+# PA120 DIGITAL：84 颗 LED，CPU 温度/占用 + GPU 温度/占用同时显示
+PA120 = Layout(
+    name="PA120", led_count=84, cpu_label=(0, 1), unit_c=4, unit_f=5,
+    temp_digits=((10, 11, 12, 13, 14, 15, 16),
+                 (17, 18, 19, 20, 21, 22, 23),
+                 (24, 25, 26, 27, 28, 29, 30)),
+    remap=PA120_REMAP,
+)
+
+# LF8：93 颗 LED，温度 / 功耗 / 频率 / 占用 四项，CPU 与 GPU 轮流显示
+# 0=CPU 字样 1=GPU 字样 2=℃ 3=℉ 4=W 5=MHz 6=%，7..27 = 左侧 3 位温度
+LF8 = Layout(
+    name="LF8", led_count=93, cpu_label=(0,), unit_c=2, unit_f=3,
+    temp_digits=((7, 8, 9, 10, 11, 12, 13),
+                 (14, 15, 16, 17, 18, 19, 20),
+                 (21, 22, 23, 24, 25, 26, 27)),
+    remap=LF8_REMAP,
+)
+
+LAYOUTS = {"pa120": PA120, "lf8": LF8}
+# 握手 PM → 布局（来自 trcc-linux 的 PM 表；只收录线序表已知且 style_sub=0 的型号）
+PM_LAYOUT = {**{pm: PA120 for pm in range(16, 32)}, 48: LF8, 49: LF8}
+
 SEGMENTS = {
     "0": "abcdef", "1": "bc", "2": "abdeg", "3": "abcdg", "4": "bcfg",
     "5": "acdfg", "6": "acdefg", "7": "abc", "8": "abcdefg", "9": "abcdfg",
@@ -73,28 +110,28 @@ SEGMENTS = {
 
 
 # ── 显示内容 → LED 开关表 ─────────────────────────────────────────────
-def cpu_temp_mask(temp: int | None, *, unit: str = "C",
+def cpu_temp_mask(temp: int | None, layout: Layout = PA120, *, unit: str = "C",
                   show_label: bool = True, show_unit: bool = True) -> list[bool]:
-    """84 位逻辑 LED 开关表：只点亮 CPU 温度。temp=None 时显示 '---'。"""
-    mask = [False] * PA120_LED_COUNT
+    """逻辑 LED 开关表：只点亮 CPU 温度。temp=None 时显示 '---'。"""
+    mask = [False] * layout.led_count
     if temp is None:
         text = "---"
     else:
         text = f"{max(0, min(999, int(temp))):>3d}"  # 前导零留空
-    for ch, leds in zip(text, CPU_TEMP_DIGITS):
+    for ch, leds in zip(text, layout.temp_digits):
         for seg, led in zip("abcdefg", leds):
             if seg in SEGMENTS[ch]:
                 mask[led] = True
     if show_label:
-        for i in CPU_LABEL:
+        for i in layout.cpu_label:
             mask[i] = True
     if show_unit:
-        mask[UNIT_F if unit == "F" else UNIT_C] = True
+        mask[layout.unit_f if unit == "F" else layout.unit_c] = True
     return mask
 
 
-def single_led_mask(index: int) -> list[bool]:
-    mask = [False] * PA120_LED_COUNT
+def single_led_mask(index: int, layout: Layout = PA120) -> list[bool]:
+    mask = [False] * layout.led_count
     mask[index] = True
     return mask
 
@@ -107,12 +144,13 @@ def build_init_packet() -> bytes:
     return bytes(pkt)
 
 
-def build_frame(mask: list[bool], color: tuple[int, int, int]) -> bytes:
+def build_frame(mask: list[bool], color: tuple[int, int, int],
+                layout: Layout = PA120) -> bytes:
     """逻辑开关表 → 重排成物理线序 → 20 字节头 + RGB 数据。"""
     on = tuple(min(255, max(0, int(c * COLOR_SCALE))) for c in color)
     off = (0, 0, 0)
     body = bytearray()
-    for logical in PA120_REMAP:
+    for logical in layout.remap:
         lit = logical < len(mask) and mask[logical]
         body += bytes(on if lit else off)
     header = bytearray(HEADER_SIZE)
@@ -161,6 +199,7 @@ class Display:
         self.dev = None
         self.pm: int | None = None
         self.sub: int | None = None
+        self.layout: Layout = PA120
         self._last_send = 0.0
 
     def open(self) -> None:
@@ -208,7 +247,7 @@ class Display:
         gap = 0.03 - (time.monotonic() - self._last_send)  # 固件需要帧间隔
         if gap > 0:
             time.sleep(gap)
-        for report in split_reports(build_frame(mask, color)):
+        for report in split_reports(build_frame(mask, color, self.layout)):
             self._write(report)
         self._last_send = time.monotonic()
 
@@ -285,20 +324,29 @@ def parse_color(s: str) -> tuple[int, int, int]:
 def connect(args) -> Display:
     disp = Display(verbose=args.verbose)
     disp.open()
+    forced = LAYOUTS[args.layout] if args.layout else None
     if args.skip_handshake:
-        print("跳过握手，按 PA120 样式发送。")
+        disp.layout = forced or LF8
+        print(f"跳过握手，按 {disp.layout.name} 布局发送。")
         return disp
     if disp.handshake():
-        style = "PA120 样式" if disp.pm in PA120_PMS else "未知样式"
-        print(f"握手成功：PM={disp.pm} SUB={disp.sub}（{style}）")
-        if disp.pm not in PA120_PMS and not args.force:
+        known = PM_LAYOUT.get(disp.pm)
+        print(f"握手成功：PM={disp.pm} SUB={disp.sub}"
+              f"（{known.name + ' 布局' if known else '未知布局'}）")
+        if forced:
+            disp.layout = forced
+        elif known:
+            disp.layout = known
+        else:
             disp.close()
-            sys.exit(
-                f"这台屏的 PM={disp.pm} 不是 PA120 样式（16..31），段位表可能不对。\n"
-                "请把这一行输出发出来；如果想硬试，加 --force。")
+            sys.exit(f"PM={disp.pm} 的段位表还没有收录。请把这一行输出发出来；"
+                     "也可以用 --layout pa120 或 --layout lf8 硬试。")
     else:
-        print("握手没有回复。固件每次上电只回答一次握手，"
-              "如果 TRCC 在这次开机后运行过，这是正常的；按 PA120 样式继续。")
+        disp.layout = forced or LF8
+        print("握手没有回复。固件每次上电只回答一次握手，如果 TRCC 或本程序"
+              f"在这次开机后运行过，这是正常的；按 {disp.layout.name} 布局继续"
+              "（可用 --layout 指定）。")
+    print(f"使用 {disp.layout.name} 布局（{disp.layout.led_count} 颗 LED）")
     return disp
 
 
@@ -322,7 +370,7 @@ def cmd_run(args) -> None:
                     print("没有找到 CPU 温度传感器（可以用 --list-sensors 看看有哪些）", file=sys.stderr)
             except Exception as e:  # LHM 没开、网络错误等
                 print(f"读取温度失败：{e}", file=sys.stderr)
-            mask = cpu_temp_mask(temp, unit="F" if args.fahrenheit else "C",
+            mask = cpu_temp_mask(temp, disp.layout, unit="F" if args.fahrenheit else "C",
                                  show_label=not args.no_label, show_unit=not args.no_unit)
             try:
                 if disp.dev is None:
@@ -340,7 +388,7 @@ def cmd_run(args) -> None:
 
 def cmd_test(args) -> None:
     disp = connect(args)
-    mask = cpu_temp_mask(args.value, unit="F" if args.fahrenheit else "C",
+    mask = cpu_temp_mask(args.value, disp.layout, unit="F" if args.fahrenheit else "C",
                          show_label=not args.no_label, show_unit=not args.no_unit)
     print(f"显示固定数值 {args.value}，保持 {args.hold} 秒…")
     end = time.monotonic() + args.hold
@@ -354,11 +402,11 @@ def cmd_test(args) -> None:
 
 def cmd_scan(args) -> None:
     disp = connect(args)
-    print("逐个点亮 84 颗逻辑 LED，用来核对段位表。Ctrl+C 结束。")
+    print(f"逐个点亮 {disp.layout.led_count} 颗逻辑 LED，用来核对段位表。Ctrl+C 结束。")
     try:
-        for i in range(args.start, PA120_LED_COUNT):
+        for i in range(args.start, disp.layout.led_count):
             print(f"LED {i}")
-            disp.send_mask(single_led_mask(i), args.color)
+            disp.send_mask(single_led_mask(i, disp.layout), args.color)
             time.sleep(args.delay)
     except KeyboardInterrupt:
         pass
@@ -385,7 +433,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--no-label", action="store_true", help="不点亮 CPU 字样")
     p.add_argument("--no-unit", action="store_true", help="不点亮 ℃/℉ 标记")
     p.add_argument("--skip-handshake", action="store_true", help="不握手，直接按 PA120 样式发送")
-    p.add_argument("--force", action="store_true", help="PM 不是 PA120 样式也继续")
+    p.add_argument("--layout", choices=sorted(LAYOUTS),
+                   help="强制使用某个布局（默认按握手 PM 自动选择；握手无回复时用 lf8）")
     p.add_argument("-v", "--verbose", action="store_true", help="打印收发的原始报文")
     p.add_argument("--url", default="http://localhost:8085/data.json",
                    help="LibreHardwareMonitor Web Server 地址")
