@@ -1,0 +1,11 @@
+# Build and temporary files
+bin/
+obj/
+*.pdb
+*.user
+*.suo
+
+# Local analysis caches
+tools/
+compare/
+tmp/
