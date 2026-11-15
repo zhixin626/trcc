@@ -44,7 +44,33 @@ class PacketTest(unittest.TestCase):
         self.assertTrue(all(len(r) == 64 for r in reports))
 
     def test_remap_is_permutation(self):
-        self.assertEqual(sorted(m.PA120_REMAP), list(range(84)))
+        for layout in m.LAYOUTS.values():
+            self.assertEqual(sorted(layout.remap), list(range(layout.led_count)))
+
+
+class LF8Test(unittest.TestCase):
+    def test_pm49_is_lf8(self):
+        self.assertIs(m.PM_LAYOUT[49], m.LF8)
+
+    def test_45c(self):
+        # CPU 字样(0) + ℃(2)；十位 '4' = 15,16,19,20；个位 '5' = 21,23,24,26,27
+        self.assertEqual(lit(m.cpu_temp_mask(45, m.LF8)),
+                         {0, 2, 15, 16, 19, 20, 21, 23, 24, 26, 27})
+
+    def test_only_cpu_area(self):
+        allowed = {0, 2, 3} | set(range(7, 28))
+        for t in (0, 9, 88, 100, 999, None):
+            self.assertLessEqual(lit(m.cpu_temp_mask(t, m.LF8)), allowed, t)
+
+    def test_frame(self):
+        mask = m.single_led_mask(0, m.LF8)          # 只亮 CPU 字样
+        f = m.build_frame(mask, (255, 255, 255), m.LF8)
+        self.assertEqual(len(f), 20 + 93 * 3)
+        self.assertEqual(int.from_bytes(f[16:18], "little"), 93 * 3)
+        body = f[20:]
+        lit_phys = [i for i in range(93) if body[i * 3]]
+        self.assertEqual(lit_phys, [m.LF8_REMAP.index(0)])   # 物理位置 51
+        self.assertEqual(len(m.split_reports(f)), 5)
 
 
 class SensorTest(unittest.TestCase):

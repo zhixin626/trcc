@@ -26,7 +26,7 @@ Thermalright PS120 DIGITAL（Phantom Spirit 120 Digital）散热器上的数码�
 | --- | --- |
 | 设备 | USB HID `0416:8001`（Winbond LED 控制器），数码屏上的每一段都是一颗 RGB LED |
 | 报文 | 64 字节 HID report，开头为 `DA DB DC DD` |
-| 握手 | 发送 `byte[12]=1`，回复里 `byte[5]` 是型号码 PM；PM 为 16–31 时是 PA120 布局 |
+| 握手 | 发送 `byte[12]=1`，回复里 `byte[5]` 是型号码 PM；PS120 实测 PM=49，即 LF8 布局（93 颗 LED） |
 | 显示 | 20 字节头 + 每颗 LED 3 字节 RGB；要熄灭的段发送黑色 `(0,0,0)` 即可 |
 | 温度 | 从 LibreHardwareMonitor 读取（Intel 用 `CPU Package`，AMD 用 `Core (Tctl/Tdie)`） |
 
@@ -36,7 +36,7 @@ Thermalright PS120 DIGITAL（Phantom Spirit 120 Digital）散热器上的数码�
 
 ## 待确认
 
-- [ ] PS120 握手返回的 PM 值（判断是否为 PA120 布局）
+- [x] PS120 握手返回的 PM 值：49（LF8 布局）
 - [ ] 显示位置是否正确（如有错位，用 `scan` 命令逐个点亮核对）
 - [ ] 长时间运行是否稳定
 
