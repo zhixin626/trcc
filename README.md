@@ -1,17 +1,151 @@
-# TRCC CPU-only reverse-engineering package
+# TRCC / PS120 数码显示屏 CPU 温度显示实验
 
-Files:
-TRCC_CPU_ONLY.exe - patched test copy
-TRCC_original.exe - original TRCC 2.1.8.2 backup
-UsbHid.dll - original HID communication component
-LibUsbDotNet.LibUsbDotNet.dll - original USB component
-USBLCDNEW files - original LCD communication component
-analysis/GetVal_0416_8001.il - relevant disassembly output
+## 项目目的
 
-Device:
-VID 0416, PID 8001
-USB description: USB Input Device
-HID description: HID-compliant vendor-defined device
-Bus description: HID Transfer
+这个项目记录一次对 Thermalright TRCCCAP 软件和 PS120 DIGITAL 数码显示屏的研究。
 
-The original installation directory was not modified. The patched executable is experimental and has no valid original signature.
+最初的目标是：
+
+> 让显示屏只显示 CPU 温度，隐藏 GPU 温度、功耗、频率、占用率、风扇、硬盘、网络等其他信息。
+
+原程序安装在：
+
+`C:\Program Files\TRCCCAP`
+
+本项目中的文件都是从原程序复制出来的实验文件。原安装目录没有被修改。
+
+## 我提出的方案
+
+我的设想是：
+
+1. 先复制原程序，不直接修改原安装目录；
+2. 研究 TRCCCAP 是否是 .NET Framework WinForms 程序；
+3. 通过反编译或修改 .NET 程序中的界面和显示逻辑；
+4. 将显示内容改成只保留 CPU 温度；
+5. 如果软件层面无法可靠修改，再研究 USB/HID 通信协议，尝试自己编写程序控制显示屏。
+
+这个方案包含两个不同层次的问题：
+
+- **软件界面层**：隐藏 TRCCCAP 窗口中不想显示的项目；
+- **设备通信层**：向 PS120 显示屏发送只包含 CPU 温度的显示数据。
+
+目前完成的主要是软件静态分析和实验性修改，没有完成对显示屏通信协议的可靠复现。
+
+## 已尝试的版本
+
+### 1. 初始复制和运行测试
+
+先复制原始 `TRCC.exe` 及其相关 DLL，避免破坏原程序。
+
+这一阶段主要用于确认：
+
+- 程序能否脱离原目录运行；
+- 依赖的 DLL 是否齐全；
+- 程序是否能正常打开；
+- 修改副本是否会影响原程序。
+
+这一步没有改变显示逻辑。
+
+### 2. `test_copy` 至 `test_copy10`
+
+这些是过程中的多个测试副本，用于反复尝试不同的静态修改。
+
+它们的共同目的，是在不修改原程序的前提下测试：
+
+- 是否可以修改 .NET 程序中的显示项目；
+- 是否可以去掉 GPU、功耗、单位等显示字段；
+- 修改后程序是否仍能启动；
+- 修改是否真正影响了发送给显示屏的数据。
+
+这些目录只是过程性副本，已经从准备上传的目录中删除，不属于最终项目文件。
+
+### 3. `TRCC_CPU_ONLY`
+
+这是第一次以“只显示 CPU 信息”为目标命名的实验版本。
+
+尝试方向是修改反编译后的 .NET 逻辑，让程序减少或跳过 GPU、功耗、频率等项目。这个版本没有得到可靠成功结果：程序可以被修改，但显示屏上的内容没有按预期变成只有 CPU 温度。
+
+### 4. `TRCC_CPU_ONLY_V2`
+
+这是针对前一个版本的第二轮修改。
+
+这一轮继续尝试修改显示项目选择和数码管显示调用，希望从“界面上隐藏项目”进一步影响实际发送到显示屏的数据。结果仍然没有被硬件验证为成功，显示屏仍然可能显示其他内容，因此不能称为可用版本。
+
+### 5. `TRCC_CPU_ONLY_0416_8001`
+
+这一版本加入了 USB/HID 设备识别方面的尝试，使用了后来通过 Windows 设备枚举看到的候选 VID/PID：
+
+- VID：`0416`
+- PID：`8001`
+
+同时继续使用前面针对 CPU-only 显示逻辑的静态修改。
+
+这个版本仍然没有证明能够正确控制 PS120 显示屏。VID/PID 只是设备匹配候选，不能单独证明它就是目标显示屏，也不能证明显示协议已经找对。
+
+### 6. 当前目录中的 `TRCC_CPU_ONLY.exe`
+
+这是整理后保留的实验副本。它是在前面实验基础上生成的最后一个静态补丁版本，主要改动包括：
+
+- 尝试修改 `FormLED.GetVal` 中不同显示样式的项目选择；
+- 尝试把 GPU、功耗、单位等相关标志清零或跳过；
+- 尝试调整 `UCScreenLED.SetMyNumeral` 的调用；
+- 保留原程序的其他文件和依赖。
+
+这个文件只是实验产物，不是已经验证成功的 CPU 温度专用程序。之前实际运行测试时，显示内容没有可靠地变成只显示 CPU 温度。
+
+## VID/PID 的来源和不确定性
+
+`0416:8001` 不是从 PS120 外壳标签或厂商资料中确认的型号标识，而是在设备保持插入的情况下，通过 Windows 设备枚举看到的一个候选 HID 设备：
+
+- USB 设备标识：`USB\\VID_0416&PID_8001`
+- 设备描述：`USB Input Device`
+- HID 描述：`HID-compliant vendor-defined device`
+- 总线描述：`HID Transfer`
+
+当时没有拔出显示屏再插回去进行对照，也没有抓 USB 报文来证明这个设备一定就是 PS120。因此：
+
+- 不能把 `0416:8001` 写成已经确认的 PS120 VID/PID；
+- 不能排除它是电脑中的其他 HID 设备；
+- 即使它确实是显示屏，也不能仅靠 VID/PID 知道应该发送什么数据；
+- 同一个厂商的多个设备也可能共用 VID/PID，具体还要结合接口、端点、报告描述符、序列号或通信报文判断。
+
+原 TRCCCAP 软件不要求用户手动输入 VID/PID，并不代表它不使用设备识别信息。它可能在程序内部自动枚举 HID 设备、检查接口或报告描述符，再选择目标设备；这些细节在用户界面中没有显示出来。
+
+## 当前结论
+
+目前没有一个已经被硬件验证成功的“只显示 CPU 温度”版本。
+
+已完成的工作主要是：
+
+- 复制原程序并保留原始备份；
+- 确认程序属于 .NET 程序并进行静态分析；
+- 尝试修改显示项目选择和数码显示调用；
+- 枚举到一个可能相关的 HID 设备；
+- 整理出可供后续分析的文件和反编译结果。
+
+尚未完成的关键工作是：
+
+- 确认 PS120 显示屏对应的准确 USB 设备；
+- 获取并理解 TRCCCAP 与显示屏之间的 HID/USB 报文；
+- 根据真实协议重新编写一个可靠的显示程序；
+- 在硬件上验证只显示 CPU 温度的效果。
+
+因此，当前仓库应被视为**研究和失败实验记录**，不能把其中的 `TRCC_CPU_ONLY.exe` 当作已经成功的软件使用。
+
+## 目录内容
+
+- `TRCC_CPU_ONLY.exe`：最后一个实验性补丁副本，未验证成功
+- `TRCC_original.exe`：原始 `TRCC.exe` 的备份
+- `UsbHid.dll`：原程序依赖的 HID 通信组件
+- `LibUsbDotNet.LibUsbDotNet.dll`：原程序依赖的 USB 组件
+- `USBLCDNEW.dll`、`USBLCDNEW.exe`、`USBLCDNEW.runtimeconfig.json`：原程序相关显示通信文件
+- `CSCore.dll`、`Newtonsoft.Json.dll`：原程序依赖
+- `analysis/GetVal_0416_8001.il`：与显示项目选择有关的反编译结果
+
+## 注意事项
+
+- 不要用本目录文件覆盖 `C:\Program Files\TRCCCAP` 中的原文件。
+- 本项目没有提供已确认可用的设备控制协议。
+- 修改 EXE 的方式依赖反编译结果，容易受版本、校验、运行环境和内部调用影响。
+- 如果继续研究，下一步应优先做 USB/HID 报文抓取和设备身份确认，而不是继续盲目修改 EXE。
+
