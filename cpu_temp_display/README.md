@@ -2,7 +2,7 @@
 
 `ps120_cpu_temp.py` 不修改 TRCC，直接通过 USB HID 给显示屏发数据，只点亮 CPU 温度、“CPU”字样和 ℃ 标记，其余全部熄灭。
 
-> **状态：还没有在真实硬件上验证。** 报文格式已经和社区项目 [thermalright-trcc-linux](https://github.com/Lexonight1/thermalright-trcc-linux) 的实现逐字节对比过，PS120 实测握手返回 PM=49，对应 LF8 布局（93 颗 LED），程序会自动选择。
+> **状态：已在 PS120 DIGITAL 上验证可用。** 握手返回 PM=49，对应 LF8 布局（93 颗 LED），程序会自动选择；温度传感器为 `CPU Package`。报文格式与社区项目 [thermalright-trcc-linux](https://github.com/Lexonight1/thermalright-trcc-linux) 的实现一致。
 
 ## 需要准备
 

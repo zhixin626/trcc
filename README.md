@@ -4,7 +4,7 @@ Thermalright PS120 DIGITAL（Phantom Spirit 120 Digital）散热器上的数码�
 
 本项目不使用、也不修改 TRCC，而是用一个小程序直接通过 USB HID 控制显示屏。
 
-> 非 Thermalright 官方项目。程序**尚未在真实硬件上验证**，欢迎反馈测试结果。
+> 非 Thermalright 官方项目。**已在 PS120 DIGITAL（PM=49，Intel CPU）上验证可用**，其他型号欢迎反馈。
 
 ## 快速开始（Windows）
 
@@ -34,10 +34,10 @@ Thermalright PS120 DIGITAL（Phantom Spirit 120 Digital）散热器上的数码�
 
 协议、型号表和段位表来自社区项目 [thermalright-trcc-linux](https://github.com/Lexonight1/thermalright-trcc-linux)（GPL-3.0）的逆向结果。
 
-## 待确认
+## 验证状态
 
 - [x] PS120 握手返回的 PM 值：49（LF8 布局）
-- [ ] 显示位置是否正确（如有错位，用 `scan` 命令逐个点亮核对）
+- [x] 显示位置正确：只显示“CPU”字样、温度和 ℃
 - [ ] 长时间运行是否稳定
 
 如果你测试过，欢迎提 Issue，附上 `python ps120_cpu_temp.py -v test 88` 的输出。
